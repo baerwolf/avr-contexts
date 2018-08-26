@@ -1,6 +1,6 @@
 /*
  * HWCLOCK.C
- * This is version 20170129T1700ZSB
+ * This is version 20180402T1600ZSB
  *
  *
  * Stephan Baerwolf (matrixstorm@gmx.de), Schwansee 2017
@@ -272,3 +272,24 @@ EXTFUNC(int8_t, hwclock_spinwait, const uint16_t ticks, EXTFUNC_functype(hwclock
   return result;
 }
 
+EXTFUNC(hwclock_time_t, hwclock_modify, const hwclock_time_t reference, const int32_t ticks) {
+  hwclock_time_t result=reference;
+#if	( (((HWCLOCK_MSBTIMER_BITS)+(HWCLOCK_LSBTIMER_BITS)) > 16) && (((HWCLOCK_MSBTIMER_BITS)+(HWCLOCK_LSBTIMER_BITS)) <= 24) )
+  if (ticks >= 0) {
+    result.value +=ticks&0xffff;
+    result.msbval+=ticks>>16;
+  }  else {
+    int32_t __helper = -ticks;
+    result.value-=__helper&0xfff;
+    result.msbval-=__helper>>16;
+  }
+#else
+  if (ticks >= 0) {
+    result.value+=ticks;
+  }  else {
+    result.value-=-ticks;
+  }
+#endif
+
+  return result;
+}

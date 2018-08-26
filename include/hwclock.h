@@ -1,6 +1,6 @@
 /*
  * HWCLOCK.H
- * This is version 20170129T1700ZSB
+ * This is version 20180402T1600ZSB
  *
  * This file includes forward definitions and macros to
  * implement an interruptless hardware clock based on timers.
@@ -180,5 +180,10 @@ HWCLOCKPUBLIC EXTFUNC_head(bool, hwclock_ispassed, const hwclock_time_t timedelt
  * Runs a limited loop while performing (maybe) a function.
  */
 HWCLOCKPUBLIC EXTFUNC_head(int8_t, hwclock_spinwait, const uint16_t ticks, EXTFUNC_functype(hwclock_waitcallback_t) waitcallback, void* userparameter);
+
+/*
+ * Modifies the "reference" time by "ticks" ticks and returns it
+ */
+HWCLOCKPUBLIC EXTFUNC_head(hwclock_time_t, hwclock_modify, const hwclock_time_t reference, const int32_t ticks);
 
 #endif

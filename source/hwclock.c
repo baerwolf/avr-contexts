@@ -1,6 +1,6 @@
 /*
  * HWCLOCK.C
- * This is version 20180402T1600ZSB
+ * This is version 20190429T1600ZSB
  *
  *
  * Stephan Baerwolf (matrixstorm@gmx.de), Schwansee 2017
@@ -273,23 +273,31 @@ EXTFUNC(int8_t, hwclock_spinwait, const uint16_t ticks, EXTFUNC_functype(hwclock
 }
 
 EXTFUNC(hwclock_time_t, hwclock_modify, const hwclock_time_t reference, const int32_t ticks) {
-  hwclock_time_t result=reference;
 #if	( (((HWCLOCK_MSBTIMER_BITS)+(HWCLOCK_LSBTIMER_BITS)) > 16) && (((HWCLOCK_MSBTIMER_BITS)+(HWCLOCK_LSBTIMER_BITS)) <= 24) )
-  if (ticks >= 0) {
-    result.value +=ticks&0xffff;
-    result.msbval+=ticks>>16;
-  }  else {
-    int32_t __helper = -ticks;
-    result.value-=__helper&0xfff;
-    result.msbval-=__helper>>16;
-  }
+#if 0
+  int32_t helper;
+  hwclock_time_t *result=(void*)(&helper);
+  (*result)=reference;
+  helper+=ticks;
+  return *result;
 #else
-  if (ticks >= 0) {
-    result.value+=ticks;
-  }  else {
-    result.value-=-ticks;
-  }
-#endif
-
+  /* more optimized than gcc would do with upper code */
+  hwclock_time_t result=reference;
+  asm volatile (
+    "add	%[_a0],		%A[_b]		\n\t"
+    "adc	%[_a1],		%B[_b]		\n\t"
+    "adc	%[_a2],		%C[_b]		\n\t"
+    : [_a0]		"+r"	(result._b[0]),
+      [_a1]		"+r"	(result._b[1]),
+      [_a2]		"+r"	(result._b[2])
+    : [_b]		"r"	(ticks)
+    : "memory"
+   );
   return result;
+#endif
+#else
+  hwclock_time_t result=reference;
+  result.value+=ticks;
+  return result;
+#endif
 }

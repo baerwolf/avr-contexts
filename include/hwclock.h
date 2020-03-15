@@ -1,6 +1,6 @@
 /*
  * HWCLOCK.H
- * This is version 20180402T1600ZSB
+ * This is version 20200315T2345ZSB
  *
  * This file includes forward definitions and macros to
  * implement an interruptless hardware clock based on timers.
@@ -37,6 +37,44 @@
  *
  * Stephan Baerwolf (matrixstorm@gmx.de), Schwansee 2017
  * (please contact me at least before commercial use)
+ *
+ *
+ * Update 20200315
+ * ^^^^^^^^^^^^^^^
+ * In order to save the two PINs (for PWM and T0) and the
+ * electrical connection between them, it is possibe to prescale
+ * timer1 by 256 and use some other 8-bit timer to follow
+ * the prescaler synchronously.
+ * The disadvantage is higher complexity accessing "hwclock_now"
+ * (due to smaller LSB timer than MSB timer),
+ * and calibrating the lower timer to the prescaler overflow.
+ *
+ * Because it is not possibe to know or change the state of
+ * prescalers, this approach needs some initial calibration.
+ * Timer1 needs to be precisely watched in order to initialize the
+ * LSB timer correctly.
+ * For example read Timer1 lowbyte, read Timer1 lowbyte again
+ * check if changed and set LSB timer value regarding cycles
+ * consumed for check and set.
+ * (The observation code should consume "cycles" where
+ * gcd(256,cycles)=1 to avoid infinite loops.)
+ *
+ * This update allows the LSB timer to be smaller than the MSB one.
+ *
+ * Something about execution cycle timings:
+ * ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ * -->  the "IN" instruction on tcnt0 after activating timer0 (at "0")
+ *      (with "OUT" or "STS" to tccr0) reads a "0" (so no timercnt yet)
+ * -->  inserting a "NOP" before the "IN" reads "1" (one cycle has passed)
+ * -->  using "LDS" instead "IN" reads one more (i.e. "1" or "2" with "NOP")
+ * -->  the same happens if timercnt is (re)set instead of activation
+ *
+ * This concludes memory is accessed 1 cycle before opcode finalization.
+ * Please consider this when calibrating prescalers using "STS" opcode...
+ *
+ *
+ * Stephan Baerwolf (matrixstorm@gmx.de), Ohama/Ishigaki 2020
+ * (please contact me at least before commercial use)
  */
 
 #ifndef HWCLOCK_H_436d4b4cebb1467bb67eca7bbee5bb2e
@@ -52,10 +90,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <avr/io.h>
-
-#if (HWCLOCK_MSBTIMER_BITS > HWCLOCK_LSBTIMER_BITS)
-#	error "The timer with most bits needs to be lowest significant!"
-#endif
 
 #ifdef HWCLOCK_C_436d4b4cebb1467bb67eca7bbee5bb2e
 #	define HWCLOCKPUBLIC

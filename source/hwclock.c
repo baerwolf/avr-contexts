@@ -1,6 +1,6 @@
 /*
  * HWCLOCK.C
- * This is version 20190429T1600ZSB
+ * This is version 20200315T2345ZSB
  *
  *
  * Stephan Baerwolf (matrixstorm@gmx.de), Schwansee 2017
@@ -66,9 +66,16 @@ EXTFUNC_void(int8_t, hwclock_finalize) {
 #endif
 
 #if ((HWCLOCK_MSBTIMER_BITS) > 8)
-#	define __HWCLKTMP	"r2"
+#   ifndef __HWCLKTMP
+#   	define __HWCLKTMP	"r2"
+#   endif
 #endif
 
+#if ((HWCLOCK_MSBTIMER_BITS) > (HWCLOCK_LSBTIMER_BITS))
+#   define __HWMSBTIMEROFFSET    (1)
+#else
+#   define __HWMSBTIMEROFFSET    (0)
+#endif
 
 EXTFUNC_void(hwclock_time_t, hwclock_now) {
   hwclock_time_t result;
@@ -99,14 +106,14 @@ EXTFUNC_void(hwclock_time_t, hwclock_now) {
 #	endif
 #endif
     :
-#if (((HWCLOCK_MSBTIMER_BITS)+(HWCLOCK_LSBTIMER_BITS)) > 24)
-      [_b3]		"=r"	(result._b[3]),
+#if ((HWCLOCK_MSBTIMER_BITS) > 8)
+      [_b3]		"=r"	(result._b[3-(__HWMSBTIMEROFFSET)]),
 #endif
-#if (((HWCLOCK_MSBTIMER_BITS)+(HWCLOCK_LSBTIMER_BITS)) > 16)
-      [_b2]		"=r"	(result._b[2]),
+#if ((HWCLOCK_MSBTIMER_BITS) > 0)
+      [_b2]		"=r"	(result._b[2-(__HWMSBTIMEROFFSET)]),
 #endif
-#if (((HWCLOCK_MSBTIMER_BITS)+(HWCLOCK_LSBTIMER_BITS)) >  8)
-      [_b1]		"=r"	(result._b[1]),
+#if ((HWCLOCK_LSBTIMER_BITS) > 8)
+      [_b1]		"=r"	(result._b[1-(__HWMSBTIMEROFFSET)]),
 #endif
       [_b0]		"=r"	(result._b[0])
 

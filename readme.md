@@ -32,8 +32,8 @@ CPUCONTEXTs allows you to have multiple statemachines existing in coexistence, w
 It does this by abstracting the whole CPU-state in data types, which then can be addressed and switch between. It provides multiple independet execution paths within one single AVR cpu.
 Without additional work, an operative (aka non-preemtive) scheduling-scheme can be implemented.
 
-Because CPUCONTEXT itself does not bring any synchronization against interrupts it is fast and minimizes blocking influences.
+Because CPUCONTEXT itself only brings minimal synchronization against interrupts it is fast and minimizes blocking influences.
 Please see head of cpucontext.h fore more details.
 
 
-by Stephan Baerwolf, Schwansee 2017
+by Stephan Baerwolf, Schwansee 2017 (last update Tokyo 2020)

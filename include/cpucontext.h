@@ -1,6 +1,6 @@
 /*
  * CPUCONTEXT.H
- * This is version 20170107T1200ZSB
+ * This is version 20200320T0900ZSB
  *
  * Advances usual AVR libc firmwares with contexts of execution.
  * THIS IS NOT AN PREEMTIVE SCHEDULER/DISPATCHER, althought it
@@ -32,7 +32,7 @@
  *   --> plan at least 2*40=80 byte for stack per context !
  * 
  * 
- * Stephan Baerwolf (matrixstorm@gmx.de), Schwansee 2017
+ * Stephan Baerwolf (matrixstorm@gmx.de), Tokyo 2020
  * (please contact me at least before commercial use)
  */
 
@@ -73,6 +73,7 @@
 /* access to specific register should be done via macros if at all */
 typedef struct __cpucontext_stack_t {
   volatile uint8_t	empty_nextbyte;
+  volatile uint8_t	sreg;
 #ifdef EIND
   volatile uint8_t	eind;
 #endif
@@ -88,7 +89,6 @@ typedef struct __cpucontext_stack_t {
 #ifdef RAMPX
   volatile uint8_t	rampx;
 #endif
-  volatile uint8_t	sreg;
 
 //   volatile uint8_t	r31;
 //   volatile uint8_t	r30;

@@ -1,9 +1,9 @@
 /*
  * CPUCONTEXT.C
- * This is version 20170107T1200ZSB
+ * This is version 20200320T0900ZSB
  *
  * 
- * Stephan Baerwolf (matrixstorm@gmx.de), Schwansee 2017
+ * Stephan Baerwolf (matrixstorm@gmx.de), Tokyo 2020
  * (please contact me at least before commercial use)
  */
 
@@ -129,9 +129,7 @@ EXTFUNCFAR __attribute__((noinline,used,naked,no_instrument_function,weak)) void
 #if (CPUCONTEXT_EXTRASYMBOLS)
 "__cpucontext_switch_iobackup%=: \n\t"
 #endif
-    /* start saving some IO-registers   : SREG, RAMPX, RAMPY, RAMPZ, RAMPD and EIND */
-    "lds	"__cpuswtch_bckreg"	,	%[__sreg]		\n\t"
-    "push	"__cpuswtch_bckreg"					\n\t"
+    /* start saving some IO-registers   : RAMPX, RAMPY, RAMPZ, RAMPD, EIND and SREG */
 #ifdef RAMPX
     "lds	"__cpuswtch_bckreg"	,	%[__rampx]		\n\t"
     "push	"__cpuswtch_bckreg"					\n\t"
@@ -152,6 +150,8 @@ EXTFUNCFAR __attribute__((noinline,used,naked,no_instrument_function,weak)) void
     "lds	"__cpuswtch_bckreg"	,	%[__eind]		\n\t"
     "push	"__cpuswtch_bckreg"					\n\t"
 #endif
+    "lds	"__cpuswtch_bckreg"	,	%[__sreg]		\n\t"
+    "push	"__cpuswtch_bckreg"					\n\t"
 
 #if (CPUCONTEXT_EXTRASYMBOLS)
 "__cpucontext_switch_stackswitch%=: \n\t"
@@ -181,9 +181,21 @@ EXTFUNCFAR __attribute__((noinline,used,naked,no_instrument_function,weak)) void
     "ld		"__cpuswtch_sphreg"	,	Z+			\n\t"
     "sbiw	r30			,	3			\n\t"   /* repair Z pointer */
     
-    /*  **SWITCH**	(accessing SPL will disable interrupts for 4 cycles */
+    /*  **SWITCH**	*/
+    /* BUG: before 20200320 this may have been cause for curruption by interrupts occuring during SP write. */
+    /*      before 20200320 I claimed "accessing SPL will disable interrupts for 4 cycles", this is FALSE ! */
+    /*      It seems a write to SPL does not disable interrupts on all AVR cores.                           */
+    /*      Also I cannot find the source for this information anymore...          Be more careful here...  */
+
+    /* for this patch I also reordered the way of saving SREG to last register - so "__cpuswtch_bckreg"     */
+    /* already contains the contents of "SREG" and it is not neccessary to save it again for tracking sei() */
+    "cli \n\t"                                            /* PATCH 20200320 - do not let intterupts interfear */
     "sts	%[__spl]		,	"__cpuswtch_splreg"	\n\t"
     "sts	%[__sph]		,	"__cpuswtch_sphreg"	\n\t"
+    "sts	%[__sreg]		,	"__cpuswtch_bckreg"	\n\t" /* PATCH 20200320 - restore previous I-flag state   */
+    /* The previous I-flag restore could be saved, because after one "pop" SREG from previous context is   */
+    /* restored. However for cleaneness of the patch, leave it be for now and possibly activate interrupts */
+    /* as fast as possibe - even if it cost 2 cycles more during context-switching...                      */
 
 #if 0
 #if (CPUCONTEXT_EXTRASYMBOLS)
@@ -205,7 +217,9 @@ EXTFUNCFAR __attribute__((noinline,used,naked,no_instrument_function,weak)) void
 #if (CPUCONTEXT_EXTRASYMBOLS)
 "__cpucontext_switch_iorestore%=: \n\t"
 #endif
-    /* start restoring some IO-registers: SREG, RAMPX, RAMPY, RAMPZ, RAMPD and EIND */
+    /* start restoring some IO-registers: RAMPX, RAMPY, RAMPZ, RAMPD, EIND and SREG */
+    "pop	"__cpuswtch_bckreg"					\n\t"
+    "sts	%[__sreg]		,	"__cpuswtch_bckreg"	\n\t"
 #ifdef EIND
     "pop	"__cpuswtch_bckreg"					\n\t"
     "sts	%[__eind]		,	"__cpuswtch_bckreg"	\n\t"
@@ -226,9 +240,6 @@ EXTFUNCFAR __attribute__((noinline,used,naked,no_instrument_function,weak)) void
     "pop	"__cpuswtch_bckreg"					\n\t"
     "sts	%[__rampx]		,	"__cpuswtch_bckreg"	\n\t"
 #endif
-    "pop	"__cpuswtch_bckreg"					\n\t"
-    "sts	%[__sreg]		,	"__cpuswtch_bckreg"	\n\t"
-
 
 #if (CPUCONTEXT_EXTRASYMBOLS)
 "__cpucontext_switch_corerestore%=: \n\t"
@@ -379,6 +390,7 @@ EXTFUNC(int8_t, cpucontext_create,cpucontext_t* context, void* stack, size_t sta
 
   memset(stack, 0, stacksize);
   context->stack=(void*)&buffer[stacksize-sizeof(cpucontext_stack_t)];
+  context->stack->sreg=SREG;
 #ifdef EIND
   context->stack->eind=EIND;
 #endif
@@ -394,7 +406,6 @@ EXTFUNC(int8_t, cpucontext_create,cpucontext_t* context, void* stack, size_t sta
 #ifdef RAMPX
   context->stack->rampx=RAMPX;
 #endif
-  context->stack->sreg=SREG;
   extptr=(uint16_t)&__cpucontext_start;
 #if (FLASHEND > 131071)
   context->stack->returnptr_msb=__EXTFUNC__builtin_avr_flash_segment(__cpucontext_start);
